@@ -253,10 +253,11 @@ func resourceAwsCognitoUserPool() *schema.Resource {
 							ValidateFunc: validateArn,
 						},
 						"custom_email_sender": {
-							Type:     schema.TypeList,
-							Optional: true,
-							Computed: true,
-							MaxItems: 1,
+							Type:         schema.TypeList,
+							Optional:     true,
+							Computed:     true,
+							MaxItems:     1,
+							RequiredWith: []string{"lambda_config.0.kms_key_id"},
 							Elem: &schema.Resource{
 								Schema: map[string]*schema.Schema{
 									"lambda_arn": {
@@ -264,7 +265,7 @@ func resourceAwsCognitoUserPool() *schema.Resource {
 										Required:     true,
 										ValidateFunc: validateArn,
 									},
-									"email_sending_account": {
+									"lambda_version": {
 										Type:         schema.TypeString,
 										Required:     true,
 										ValidateFunc: validation.StringInSlice(cognitoidentityprovider.CustomEmailSenderLambdaVersionType_Values(), false),
@@ -273,10 +274,11 @@ func resourceAwsCognitoUserPool() *schema.Resource {
 							},
 						},
 						"custom_sms_sender": {
-							Type:     schema.TypeList,
-							Optional: true,
-							Computed: true,
-							MaxItems: 1,
+							Type:         schema.TypeList,
+							Optional:     true,
+							Computed:     true,
+							MaxItems:     1,
+							RequiredWith: []string{"lambda_config.0.kms_key_id"},
 							Elem: &schema.Resource{
 								Schema: map[string]*schema.Schema{
 									"lambda_arn": {
@@ -284,7 +286,7 @@ func resourceAwsCognitoUserPool() *schema.Resource {
 										Required:     true,
 										ValidateFunc: validateArn,
 									},
-									"email_sending_account": {
+									"lambda_version": {
 										Type:         schema.TypeString,
 										Required:     true,
 										ValidateFunc: validation.StringInSlice(cognitoidentityprovider.CustomSMSSenderLambdaVersionType_Values(), false),
@@ -2216,7 +2218,7 @@ func flattenCognitoUserPoolCustomSMSSender(u *cognitoidentityprovider.CustomSMSL
 	}
 
 	m["lambda_arn"] = aws.StringValue(u.LambdaArn)
-	m["lambda_version"] = aws.StringValue(u.LambdaArn)
+	m["lambda_version"] = aws.StringValue(u.LambdaVersion)
 
 	return []map[string]interface{}{m}
 }
@@ -2238,7 +2240,7 @@ func flattenCognitoUserPoolCustomEmailSender(u *cognitoidentityprovider.CustomEm
 	}
 
 	m["lambda_arn"] = aws.StringValue(u.LambdaArn)
-	m["lambda_version"] = aws.StringValue(u.LambdaArn)
+	m["lambda_version"] = aws.StringValue(u.LambdaVersion)
 
 	return []map[string]interface{}{m}
 }
