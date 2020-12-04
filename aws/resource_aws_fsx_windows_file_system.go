@@ -71,7 +71,6 @@ func resourceAwsFsxWindowsFileSystem() *schema.Resource {
 			"aliases": {
 				Type:     schema.TypeSet,
 				Optional: true,
-				ForceNew: true,
 				MaxItems: 50,
 				Elem: &schema.Schema{
 					Type:         schema.TypeString,
