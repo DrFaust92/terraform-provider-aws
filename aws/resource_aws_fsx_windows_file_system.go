@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/terraform-providers/terraform-provider-aws/aws/internal/keyvaluetags"
+	"github.com/terraform-providers/terraform-provider-aws/aws/internal/service/fsx/finder"
 	"github.com/terraform-providers/terraform-provider-aws/aws/internal/service/fsx/waiter"
 )
 
@@ -73,12 +74,8 @@ func resourceAwsFsxWindowsFileSystem() *schema.Resource {
 				ForceNew: true,
 				MaxItems: 50,
 				Elem: &schema.Schema{
-					Type: schema.TypeString,
-					ValidateFunc: validation.All(
-						validation.StringLenBetween(4, 253),
-						validation.StringMatch(regexp.MustCompile(`^[^\u0000\u0085\u2028\u2029\r\n]$`),
-							"must be Formatted as a fully-qualified domain name and Cannot start or end with a hyphen"),
-					),
+					Type:         schema.TypeString,
+					ValidateFunc: validation.StringLenBetween(4, 253),
 				},
 			},
 			"dns_name": {
@@ -413,7 +410,7 @@ func resourceAwsFsxWindowsFileSystemRead(d *schema.ResourceData, meta interface{
 	conn := meta.(*AWSClient).fsxconn
 	ignoreTagsConfig := meta.(*AWSClient).IgnoreTagsConfig
 
-	filesystem, err := describeFsxFileSystem(conn, d.Id())
+	filesystem, err := finder.FileSystemByID(conn, d.Id())
 
 	if isAWSErr(err, fsx.ErrCodeFileSystemNotFound, "") {
 		log.Printf("[WARN] FSx File System (%s) not found, removing from state", d.Id())

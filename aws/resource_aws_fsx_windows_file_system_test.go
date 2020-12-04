@@ -5,12 +5,13 @@ import (
 	"log"
 	"regexp"
 	"testing"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/fsx"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/terraform-providers/terraform-provider-aws/aws/internal/service/fsx/finder"
 )
 
 func init() {
@@ -23,9 +24,10 @@ func init() {
 func testSweepFSXWindowsFileSystems(region string) error {
 	client, err := sharedClientForRegion(region)
 	if err != nil {
-		return fmt.Errorf("error getting client: %s", err)
+		return fmt.Errorf("error getting client: %w", err)
 	}
 	conn := client.(*AWSClient).fsxconn
+	var sweeperErrs *multierror.Error
 	input := &fsx.DescribeFileSystemsInput{}
 
 	err = conn.DescribeFileSystemsPages(input, func(page *fsx.DescribeFileSystemsOutput, lastPage bool) bool {
@@ -34,24 +36,16 @@ func testSweepFSXWindowsFileSystems(region string) error {
 				continue
 			}
 
-			input := &fsx.DeleteFileSystemInput{
-				ClientRequestToken: aws.String(resource.UniqueId()),
-				FileSystemId:       fs.FileSystemId,
-				WindowsConfiguration: &fsx.DeleteFileSystemWindowsConfiguration{
-					SkipFinalBackup: aws.Bool(true),
-				},
-			}
-
-			log.Printf("[INFO] Deleting FSx windows filesystem: %s", aws.StringValue(fs.FileSystemId))
-			_, err := conn.DeleteFileSystem(input)
+			r := resourceAwsFsxWindowsFileSystem()
+			d := r.Data(nil)
+			d.SetId(aws.StringValue(fs.FileSystemId))
+			d.Set("skip_final_backup", true)
+			err := r.Delete(d, client)
 
 			if err != nil {
-				log.Printf("[ERROR] Error deleting FSx filesystem: %s", err)
+				log.Printf("[ERROR] %s", err)
+				sweeperErrs = multierror.Append(sweeperErrs, err)
 				continue
-			}
-
-			if err := waitForFsxFileSystemDeletion(conn, aws.StringValue(fs.FileSystemId), 30*time.Minute); err != nil {
-				log.Printf("[ERROR] Error waiting for filesystem (%s) to delete: %s", aws.StringValue(fs.FileSystemId), err)
 			}
 		}
 
@@ -60,15 +54,14 @@ func testSweepFSXWindowsFileSystems(region string) error {
 
 	if testSweepSkipSweepError(err) {
 		log.Printf("[WARN] Skipping FSx Windows Filesystem sweep for %s: %s", region, err)
-		return nil
+		return sweeperErrs.ErrorOrNil()
 	}
 
 	if err != nil {
-		return fmt.Errorf("error listing FSx Windows Filesystems: %s", err)
+		sweeperErrs = multierror.Append(sweeperErrs, fmt.Errorf("error listing FSx Windows Filesystems: %w", err))
 	}
 
-	return nil
-
+	return sweeperErrs.ErrorOrNil()
 }
 
 func TestAccAWSFsxWindowsFileSystem_basic(t *testing.T) {
@@ -103,6 +96,7 @@ func TestAccAWSFsxWindowsFileSystem_basic(t *testing.T) {
 					resource.TestMatchResourceAttr(resourceName, "weekly_maintenance_start_time", regexp.MustCompile(`^\d:\d\d:\d\d$`)),
 					resource.TestCheckResourceAttr(resourceName, "deployment_type", "SINGLE_AZ_1"),
 					resource.TestCheckResourceAttr(resourceName, "storage_type", "SSD"),
+					resource.TestCheckResourceAttr(resourceName, "aliases.#", "0"),
 				),
 			},
 			{
@@ -697,7 +691,7 @@ func testAccCheckFsxWindowsFileSystemExists(resourceName string, fs *fsx.FileSys
 
 		conn := testAccProvider.Meta().(*AWSClient).fsxconn
 
-		filesystem, err := describeFsxFileSystem(conn, rs.Primary.ID)
+		filesystem, err := finder.FileSystemByID(conn, rs.Primary.ID)
 
 		if err != nil {
 			return err
@@ -721,7 +715,7 @@ func testAccCheckFsxWindowsFileSystemDestroy(s *terraform.State) error {
 			continue
 		}
 
-		filesystem, err := describeFsxFileSystem(conn, rs.Primary.ID)
+		filesystem, err := finder.FileSystemByID(conn, rs.Primary.ID)
 
 		if isAWSErr(err, fsx.ErrCodeFileSystemNotFound, "") {
 			continue
