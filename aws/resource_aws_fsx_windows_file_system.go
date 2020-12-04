@@ -126,8 +126,9 @@ func resourceAwsFsxWindowsFileSystem() *schema.Resource {
 							},
 						},
 						"domain_name": {
-							Type:     schema.TypeString,
-							Required: true,
+							Type:         schema.TypeString,
+							Required:     true,
+							ValidateFunc: validation.StringLenBetween(1, 255),
 						},
 						"file_system_administrators_group": {
 							Type:         schema.TypeString,
@@ -169,6 +170,7 @@ func resourceAwsFsxWindowsFileSystem() *schema.Resource {
 				Required: true,
 				ForceNew: true,
 				MinItems: 1,
+				MaxItems: 50,
 				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
 			"tags": tagsSchema(),
@@ -352,8 +354,8 @@ func resourceAwsFsxWindowsFileSystemUpdate(d *schema.ResourceData, meta interfac
 			return fmt.Errorf("error updating FSx Windows File System (%s): %w", d.Id(), err)
 		}
 
-		if err := waitForFsxFileSystemUpdateAdministrativeActionsStatusFileSystemUpdate(conn, d.Id(), d.Timeout(schema.TimeoutUpdate)); err != nil {
-			return fmt.Errorf("error waiting for FSx Windows File System (%s) update: %w", d.Id(), err)
+		if _, err := waiter.FileSystemAdministrativeActionsCompletedOrOptimizing(conn, d.Id(), d.Timeout(schema.TimeoutCreate)); err != nil {
+			return fmt.Errorf("error waiting for filesystem (%s) to update: %w", d.Id(), err)
 		}
 	}
 
@@ -375,6 +377,12 @@ func resourceAwsFsxWindowsFileSystemUpdate(d *schema.ResourceData, meta interfac
 			if err != nil {
 				return fmt.Errorf("error Associating FSx Windows File System aliases (%s): %w", d.Id(), err)
 			}
+
+			for _, aliasID := range additionList.List() {
+				if _, err := waiter.FileSystemWindowsAliasAvailable(conn, d.Id(), aliasID.(string)); err != nil {
+					return fmt.Errorf("error waiting for filesystem alias (%s) to be Available: %w", d.Id(), err)
+				}
+			}
 		}
 
 		removalList := os.Difference(ns)
@@ -388,6 +396,12 @@ func resourceAwsFsxWindowsFileSystemUpdate(d *schema.ResourceData, meta interfac
 
 			if err != nil {
 				return fmt.Errorf("error disassociating FSx Windows File System aliases (%s): %w", d.Id(), err)
+			}
+
+			for _, aliasID := range removalList.List() {
+				if _, err := waiter.FileSystemWindowsAliasDeleted(conn, d.Id(), aliasID.(string)); err != nil {
+					return fmt.Errorf("error waiting for filesystem alias (%s) to be Deleted: %w", d.Id(), err)
+				}
 			}
 		}
 	}
@@ -464,6 +478,16 @@ func resourceAwsFsxWindowsFileSystemRead(d *schema.ResourceData, meta interface{
 	d.Set("throughput_capacity", winConfig.ThroughputCapacity)
 	d.Set("vpc_id", filesystem.VpcId)
 	d.Set("weekly_maintenance_start_time", winConfig.WeeklyMaintenanceStartTime)
+
+	if winConfig.Aliases != nil {
+		var aliases []*string
+		for _, i := range winConfig.Aliases {
+			aliases = append(aliases, i.Name)
+		}
+		if err := d.Set("aliases", flattenStringSet(aliases)); err != nil {
+			return fmt.Errorf("error setting aliases: %w", err)
+		}
+	}
 
 	return nil
 }
