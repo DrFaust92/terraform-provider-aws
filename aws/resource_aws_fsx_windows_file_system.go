@@ -374,10 +374,8 @@ func resourceAwsFsxWindowsFileSystemUpdate(d *schema.ResourceData, meta interfac
 				return fmt.Errorf("error Associating FSx Windows File System aliases (%s): %w", d.Id(), err)
 			}
 
-			for _, aliasID := range additionList.List() {
-				if _, err := waiter.FileSystemWindowsAliasAvailable(conn, d.Id(), aliasID.(string)); err != nil {
-					return fmt.Errorf("error waiting for filesystem alias (%s) to be Available: %w", d.Id(), err)
-				}
+			if _, err := waiter.FileSystemAdministrativeActionsCompletedOrOptimizing(conn, d.Id(), d.Timeout(schema.TimeoutCreate)); err != nil {
+				return fmt.Errorf("error waiting for filesystem (%s) to update: %w", d.Id(), err)
 			}
 		}
 
@@ -394,10 +392,8 @@ func resourceAwsFsxWindowsFileSystemUpdate(d *schema.ResourceData, meta interfac
 				return fmt.Errorf("error disassociating FSx Windows File System aliases (%s): %w", d.Id(), err)
 			}
 
-			for _, aliasID := range removalList.List() {
-				if _, err := waiter.FileSystemWindowsAliasDeleted(conn, d.Id(), aliasID.(string)); err != nil {
-					return fmt.Errorf("error waiting for filesystem alias (%s) to be Deleted: %w", d.Id(), err)
-				}
+			if _, err := waiter.FileSystemAdministrativeActionsCompletedOrOptimizing(conn, d.Id(), d.Timeout(schema.TimeoutCreate)); err != nil {
+				return fmt.Errorf("error waiting for filesystem (%s) to update: %w", d.Id(), err)
 			}
 		}
 	}
