@@ -350,7 +350,7 @@ func resourceAwsFsxWindowsFileSystemUpdate(d *schema.ResourceData, meta interfac
 			return fmt.Errorf("error updating FSx Windows File System (%s): %w", d.Id(), err)
 		}
 
-		if _, err := waiter.FileSystemAdministrativeActionsCompletedOrOptimizing(conn, d.Id(), d.Timeout(schema.TimeoutCreate)); err != nil {
+		if _, err := waiter.FileSystemAdministrativeActionsCompletedOrOptimizing(conn, d.Id(), fsx.AdministrativeActionTypeFileSystemUpdate, d.Timeout(schema.TimeoutCreate)); err != nil {
 			return fmt.Errorf("error waiting for filesystem (%s) to update: %w", d.Id(), err)
 		}
 	}
@@ -374,7 +374,7 @@ func resourceAwsFsxWindowsFileSystemUpdate(d *schema.ResourceData, meta interfac
 				return fmt.Errorf("error Associating FSx Windows File System aliases (%s): %w", d.Id(), err)
 			}
 
-			if _, err := waiter.FileSystemAdministrativeActionsCompletedOrOptimizing(conn, d.Id(), d.Timeout(schema.TimeoutCreate)); err != nil {
+			if _, err := waiter.FileSystemAdministrativeActionsCompletedOrOptimizing(conn, d.Id(), fsx.AdministrativeActionTypeFileSystemAliasAssociation, d.Timeout(schema.TimeoutCreate)); err != nil {
 				return fmt.Errorf("error waiting for filesystem (%s) to update: %w", d.Id(), err)
 			}
 		}
@@ -392,7 +392,7 @@ func resourceAwsFsxWindowsFileSystemUpdate(d *schema.ResourceData, meta interfac
 				return fmt.Errorf("error disassociating FSx Windows File System aliases (%s): %w", d.Id(), err)
 			}
 
-			if _, err := waiter.FileSystemAdministrativeActionsCompletedOrOptimizing(conn, d.Id(), d.Timeout(schema.TimeoutCreate)); err != nil {
+			if _, err := waiter.FileSystemAdministrativeActionsCompletedOrOptimizing(conn, d.Id(), fsx.AdministrativeActionTypeFileSystemAliasDisassociation, d.Timeout(schema.TimeoutCreate)); err != nil {
 				return fmt.Errorf("error waiting for filesystem (%s) to update: %w", d.Id(), err)
 			}
 		}

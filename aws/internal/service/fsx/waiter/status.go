@@ -73,7 +73,7 @@ func FileSystemWindowsAliasStatus(conn *fsx.FSx, id, aliasID string) resource.St
 }
 
 // FileSystemAdministrativeActionsStatus fetches the  File System and its Status
-func FileSystemAdministrativeActionsStatus(conn *fsx.FSx, id string) resource.StateRefreshFunc {
+func FileSystemAdministrativeActionsStatus(conn *fsx.FSx, id, action string) resource.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		output, err := finder.FileSystemByID(conn, id)
 		if tfawserr.ErrCodeEquals(err, fsx.ErrCodeFileSystemNotFound) {
@@ -93,7 +93,7 @@ func FileSystemAdministrativeActionsStatus(conn *fsx.FSx, id string) resource.St
 				continue
 			}
 
-			if aws.StringValue(administrativeAction.AdministrativeActionType) == fsx.AdministrativeActionTypeFileSystemUpdate {
+			if aws.StringValue(administrativeAction.AdministrativeActionType) == action {
 				return output, aws.StringValue(administrativeAction.Status), nil
 			}
 		}

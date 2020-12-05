@@ -90,7 +90,7 @@ func FileSystemWindowsAliasDeleted(conn *fsx.FSx, id, aliasID string) (*fsx.Alia
 }
 
 // FileSystemAdministrativeActionsCompletedOrOptimizing waits for a File System Administrative Actions to return Completed or Updated Optimizing
-func FileSystemAdministrativeActionsCompletedOrOptimizing(conn *fsx.FSx, id string, timeout time.Duration) (*fsx.FileSystem, error) {
+func FileSystemAdministrativeActionsCompletedOrOptimizing(conn *fsx.FSx, id, action string, timeout time.Duration) (*fsx.FileSystem, error) {
 	stateConf := &resource.StateChangeConf{
 		Pending: []string{
 			fsx.StatusInProgress,
@@ -100,7 +100,7 @@ func FileSystemAdministrativeActionsCompletedOrOptimizing(conn *fsx.FSx, id stri
 			fsx.StatusCompleted,
 			fsx.StatusUpdatedOptimizing,
 		},
-		Refresh: FileSystemAdministrativeActionsStatus(conn, id),
+		Refresh: FileSystemAdministrativeActionsStatus(conn, id, action),
 		Timeout: timeout,
 		Delay:   FileSystemAvailableDelay,
 	}
