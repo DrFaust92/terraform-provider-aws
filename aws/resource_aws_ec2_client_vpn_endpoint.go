@@ -53,14 +53,11 @@ func resourceAwsEc2ClientVpnEndpoint() *schema.Resource {
 				Default:  false,
 			},
 			"transport_protocol": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
-				Default:  ec2.TransportProtocolUdp,
-				ValidateFunc: validation.StringInSlice([]string{
-					ec2.TransportProtocolTcp,
-					ec2.TransportProtocolUdp,
-				}, false),
+				Type:         schema.TypeString,
+				Optional:     true,
+				ForceNew:     true,
+				Default:      ec2.TransportProtocolUdp,
+				ValidateFunc: validation.StringInSlice(ec2.TransportProtocol_Values(), false),
 			},
 			"authentication_options": {
 				Type:     schema.TypeList,
@@ -69,14 +66,10 @@ func resourceAwsEc2ClientVpnEndpoint() *schema.Resource {
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"type": {
-							Type:     schema.TypeString,
-							Required: true,
-							ForceNew: true,
-							ValidateFunc: validation.StringInSlice([]string{
-								ec2.ClientVpnAuthenticationTypeCertificateAuthentication,
-								ec2.ClientVpnAuthenticationTypeDirectoryServiceAuthentication,
-								ec2.ClientVpnAuthenticationTypeFederatedAuthentication,
-							}, false),
+							Type:         schema.TypeString,
+							Required:     true,
+							ForceNew:     true,
+							ValidateFunc: validation.StringInSlice(ec2.ClientVpnAuthenticationType_Values(), false),
 						},
 						"saml_provider_arn": {
 							Type:         schema.TypeString,
@@ -133,6 +126,10 @@ func resourceAwsEc2ClientVpnEndpoint() *schema.Resource {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
+			"vpc_id": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
 		},
 	}
 }
@@ -172,22 +169,11 @@ func resourceAwsEc2ClientVpnEndpointCreate(d *schema.ResourceData, meta interfac
 	}
 
 	if v, ok := d.GetOk("connection_log_options"); ok {
-		connLogSet := v.([]interface{})
-		attrs := connLogSet[0].(map[string]interface{})
+		req.ConnectionLogOptions = expandEc2ClientVpnEndpointConnectionLogOptions(v.([]interface{}))
+	}
 
-		connLogReq := &ec2.ConnectionLogOptions{
-			Enabled: aws.Bool(attrs["enabled"].(bool)),
-		}
-
-		if attrs["enabled"].(bool) && attrs["cloudwatch_log_group"].(string) != "" {
-			connLogReq.CloudwatchLogGroup = aws.String(attrs["cloudwatch_log_group"].(string))
-		}
-
-		if attrs["enabled"].(bool) && attrs["cloudwatch_log_stream"].(string) != "" {
-			connLogReq.CloudwatchLogStream = aws.String(attrs["cloudwatch_log_stream"].(string))
-		}
-
-		req.ConnectionLogOptions = connLogReq
+	if v, ok := d.GetOk("vpc_id"); ok {
+		req.VpcId = aws.String(v.(string))
 	}
 
 	resp, err := conn.CreateClientVpnEndpoint(req)
@@ -220,41 +206,45 @@ func resourceAwsEc2ClientVpnEndpointRead(d *schema.ResourceData, meta interface{
 		return fmt.Errorf("Error reading Client VPN endpoint: %w", err)
 	}
 
-	if result == nil || len(result.ClientVpnEndpoints) == 0 || result.ClientVpnEndpoints[0] == nil {
+	vpnEndpoints := result.ClientVpnEndpoints
+	if result == nil || len(vpnEndpoints) == 0 || vpnEndpoints[0] == nil {
 		log.Printf("[WARN] EC2 Client VPN Endpoint (%s) not found, removing from state", d.Id())
 		d.SetId("")
 		return nil
 	}
 
-	if result.ClientVpnEndpoints[0].Status != nil && aws.StringValue(result.ClientVpnEndpoints[0].Status.Code) == ec2.ClientVpnEndpointStatusCodeDeleted {
+	vpnEndpoint := vpnEndpoints[0]
+	vpnEndpointStatus := vpnEndpoint.Status
+	if vpnEndpointStatus != nil && aws.StringValue(vpnEndpointStatus.Code) == ec2.ClientVpnEndpointStatusCodeDeleted {
 		log.Printf("[WARN] EC2 Client VPN Endpoint (%s) not found, removing from state", d.Id())
 		d.SetId("")
 		return nil
 	}
 
-	d.Set("description", result.ClientVpnEndpoints[0].Description)
-	d.Set("client_cidr_block", result.ClientVpnEndpoints[0].ClientCidrBlock)
-	d.Set("server_certificate_arn", result.ClientVpnEndpoints[0].ServerCertificateArn)
-	d.Set("transport_protocol", result.ClientVpnEndpoints[0].TransportProtocol)
-	d.Set("dns_name", result.ClientVpnEndpoints[0].DnsName)
-	d.Set("dns_servers", result.ClientVpnEndpoints[0].DnsServers)
+	d.Set("description", vpnEndpoint.Description)
+	d.Set("client_cidr_block", vpnEndpoint.ClientCidrBlock)
+	d.Set("server_certificate_arn", vpnEndpoint.ServerCertificateArn)
+	d.Set("transport_protocol", vpnEndpoint.TransportProtocol)
+	d.Set("dns_name", vpnEndpoint.DnsName)
+	d.Set("dns_servers", flattenStringSet(vpnEndpoint.DnsServers))
+	d.Set("vpc_id", vpnEndpoint.VpcId)
 
-	if result.ClientVpnEndpoints[0].Status != nil {
-		d.Set("status", result.ClientVpnEndpoints[0].Status.Code)
+	if vpnEndpointStatus != nil {
+		d.Set("status", vpnEndpointStatus.Code)
 	}
-	d.Set("split_tunnel", result.ClientVpnEndpoints[0].SplitTunnel)
+	d.Set("split_tunnel", vpnEndpoint.SplitTunnel)
 
-	err = d.Set("authentication_options", flattenAuthOptsConfig(result.ClientVpnEndpoints[0].AuthenticationOptions))
+	err = d.Set("authentication_options", flattenAuthOptsConfig(vpnEndpoint.AuthenticationOptions))
 	if err != nil {
 		return fmt.Errorf("error setting authentication_options: %w", err)
 	}
 
-	err = d.Set("connection_log_options", flattenConnLoggingConfig(result.ClientVpnEndpoints[0].ConnectionLogOptions))
+	err = d.Set("connection_log_options", flattenConnLoggingConfig(vpnEndpoint.ConnectionLogOptions))
 	if err != nil {
 		return fmt.Errorf("error setting connection_log_options: %w", err)
 	}
 
-	tags := keyvaluetags.Ec2KeyValueTags(result.ClientVpnEndpoints[0].Tags).IgnoreAws().IgnoreConfig(ignoreTagsConfig)
+	tags := keyvaluetags.Ec2KeyValueTags(vpnEndpoint.Tags).IgnoreAws().IgnoreConfig(ignoreTagsConfig)
 
 	//lintignore:AWSR002
 	if err := d.Set("tags", tags.RemoveDefaultConfig(defaultTagsConfig).Map()); err != nil {
@@ -324,24 +314,13 @@ func resourceAwsEc2ClientVpnEndpointUpdate(d *schema.ResourceData, meta interfac
 		req.SplitTunnel = aws.Bool(d.Get("split_tunnel").(bool))
 	}
 
+	if d.HasChange("vpc_id") {
+		req.VpcId = aws.String(d.Get("vpc_id").(string))
+	}
+
 	if d.HasChange("connection_log_options") {
 		if v, ok := d.GetOk("connection_log_options"); ok {
-			connSet := v.([]interface{})
-			attrs := connSet[0].(map[string]interface{})
-
-			connReq := &ec2.ConnectionLogOptions{
-				Enabled: aws.Bool(attrs["enabled"].(bool)),
-			}
-
-			if attrs["enabled"].(bool) && attrs["cloudwatch_log_group"].(string) != "" {
-				connReq.CloudwatchLogGroup = aws.String(attrs["cloudwatch_log_group"].(string))
-			}
-
-			if attrs["enabled"].(bool) && attrs["cloudwatch_log_stream"].(string) != "" {
-				connReq.CloudwatchLogStream = aws.String(attrs["cloudwatch_log_stream"].(string))
-			}
-
-			req.ConnectionLogOptions = connReq
+			req.ConnectionLogOptions = expandEc2ClientVpnEndpointConnectionLogOptions(v.([]interface{}))
 		}
 	}
 
@@ -362,12 +341,12 @@ func resourceAwsEc2ClientVpnEndpointUpdate(d *schema.ResourceData, meta interfac
 func flattenConnLoggingConfig(lopts *ec2.ConnectionLogResponseOptions) []map[string]interface{} {
 	m := make(map[string]interface{})
 	if lopts.CloudwatchLogGroup != nil {
-		m["cloudwatch_log_group"] = *lopts.CloudwatchLogGroup
+		m["cloudwatch_log_group"] = aws.StringValue(lopts.CloudwatchLogGroup)
 	}
 	if lopts.CloudwatchLogStream != nil {
-		m["cloudwatch_log_stream"] = *lopts.CloudwatchLogStream
+		m["cloudwatch_log_stream"] = aws.StringValue(lopts.CloudwatchLogStream)
 	}
-	m["enabled"] = *lopts.Enabled
+	m["enabled"] = aws.BoolValue(lopts.Enabled)
 	return []map[string]interface{}{m}
 }
 
@@ -389,6 +368,28 @@ func flattenAuthOptsConfig(aopts []*ec2.ClientVpnAuthentication) []map[string]in
 		result = append([]map[string]interface{}{r}, result...)
 	}
 	return result
+}
+
+func expandEc2ClientVpnEndpointConnectionLogOptions(l []interface{}) *ec2.ConnectionLogOptions {
+	if len(l) == 0 || l[0] == nil {
+		return &ec2.ConnectionLogOptions{}
+	}
+
+	m := l[0].(map[string]interface{})
+	enabled := m["enabled"].(bool)
+	connLogReq := &ec2.ConnectionLogOptions{
+		Enabled: aws.Bool(enabled),
+	}
+
+	if enabled && m["cloudwatch_log_group"].(string) != "" {
+		connLogReq.CloudwatchLogGroup = aws.String(m["cloudwatch_log_group"].(string))
+	}
+
+	if enabled && m["cloudwatch_log_stream"].(string) != "" {
+		connLogReq.CloudwatchLogStream = aws.String(m["cloudwatch_log_stream"].(string))
+	}
+
+	return connLogReq
 }
 
 func expandEc2ClientVpnAuthenticationRequest(data map[string]interface{}) *ec2.ClientVpnAuthenticationRequest {

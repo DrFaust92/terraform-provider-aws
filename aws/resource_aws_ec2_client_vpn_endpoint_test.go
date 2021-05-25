@@ -148,6 +148,7 @@ func testAccAwsEc2ClientVpnEndpoint_basic(t *testing.T) {
 					testAccMatchResourceAttrRegionalARN(resourceName, "arn", "ec2", regexp.MustCompile(`client-vpn-endpoint/cvpn-endpoint-.+`)),
 					resource.TestCheckResourceAttr(resourceName, "authentication_options.#", "1"),
 					resource.TestCheckResourceAttr(resourceName, "authentication_options.0.type", "certificate-authentication"),
+					resource.TestCheckResourceAttrPair(resourceName, "authentication_options.0.root_certificate_chain_arn", "aws_acm_certificate.test", "arn"),
 					resource.TestCheckResourceAttr(resourceName, "status", ec2.ClientVpnEndpointStatusCodePendingAssociate),
 				),
 			},
@@ -200,6 +201,7 @@ func testAccAwsEc2ClientVpnEndpoint_msAD(t *testing.T) {
 					testAccCheckAwsEc2ClientVpnEndpointExists(resourceName, &v),
 					resource.TestCheckResourceAttr(resourceName, "authentication_options.#", "1"),
 					resource.TestCheckResourceAttr(resourceName, "authentication_options.0.type", "directory-service-authentication"),
+					resource.TestCheckResourceAttrPair(resourceName, "authentication_options.0.active_directory_id", "aws_directory_service_directory.test", "id"),
 				),
 			},
 			{
@@ -228,7 +230,9 @@ func testAccAwsEc2ClientVpnEndpoint_mutualAuthAndMsAD(t *testing.T) {
 					testAccCheckAwsEc2ClientVpnEndpointExists(resourceName, &v),
 					resource.TestCheckResourceAttr(resourceName, "authentication_options.#", "2"),
 					resource.TestCheckResourceAttr(resourceName, "authentication_options.0.type", "directory-service-authentication"),
+					resource.TestCheckResourceAttrPair(resourceName, "authentication_options.0.active_directory_id", "aws_directory_service_directory.test", "id"),
 					resource.TestCheckResourceAttr(resourceName, "authentication_options.1.type", "certificate-authentication"),
+					resource.TestCheckResourceAttrPair(resourceName, "authentication_options.1.root_certificate_chain_arn", "aws_acm_certificate.test", "arn"),
 				),
 			},
 			{
@@ -257,6 +261,7 @@ func testAccAwsEc2ClientVpnEndpoint_federated(t *testing.T) {
 					testAccCheckAwsEc2ClientVpnEndpointExists(resourceName, &v),
 					resource.TestCheckResourceAttr(resourceName, "authentication_options.#", "1"),
 					resource.TestCheckResourceAttr(resourceName, "authentication_options.0.type", "federated-authentication"),
+					resource.TestCheckResourceAttrPair(resourceName, "authentication_options.0.saml_provider_arn", "aws_iam_saml_provider.default", "arn"),
 				),
 			},
 			{
@@ -327,7 +332,15 @@ func testAccAwsEc2ClientVpnEndpoint_withDNSServers(t *testing.T) {
 				Config: testAccEc2ClientVpnEndpointConfigWithDNSServers(rStr),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckAwsEc2ClientVpnEndpointExists(resourceName, &v2),
+					resource.TestCheckResourceAttr(resourceName, "dns_servers.#", "2"),
+					resource.TestCheckTypeSetElemAttr(resourceName, "dns_servers.*", "8.8.8.8"),
+					resource.TestCheckTypeSetElemAttr(resourceName, "dns_servers.*", "8.8.4.4"),
 				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
 			},
 		},
 	})
