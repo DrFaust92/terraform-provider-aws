@@ -853,6 +853,7 @@ func Provider() *schema.Provider {
 			"aws_kms_external_key":                                    resourceAwsKmsExternalKey(),
 			"aws_kms_grant":                                           resourceAwsKmsGrant(),
 			"aws_kms_key":                                             resourceAwsKmsKey(),
+			"aws_kms_key_policy":                                      resourceAwsKmsKeyPolicy(),
 			"aws_kms_ciphertext":                                      resourceAwsKmsCiphertext(),
 			"aws_lakeformation_data_lake_settings":                    resourceAwsLakeFormationDataLakeSettings(),
 			"aws_lakeformation_permissions":                           resourceAwsLakeFormationPermissions(),
