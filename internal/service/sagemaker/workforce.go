@@ -12,7 +12,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/hashicorp/terraform-provider-aws/internal/conns"
 	"github.com/hashicorp/terraform-provider-aws/internal/flex"
+	tftags "github.com/hashicorp/terraform-provider-aws/internal/tags"
 	"github.com/hashicorp/terraform-provider-aws/internal/tfresource"
+	"github.com/hashicorp/terraform-provider-aws/internal/verify"
 )
 
 func ResourceWorkforce() *schema.Resource {
@@ -137,6 +139,8 @@ func ResourceWorkforce() *schema.Resource {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
+			"tags":     tftags.TagsSchema(),
+			"tags_all": tftags.TagsSchemaComputed(),
 			"workforce_name": {
 				Type:     schema.TypeString,
 				Required: true,
@@ -147,15 +151,22 @@ func ResourceWorkforce() *schema.Resource {
 				),
 			},
 		},
+		CustomizeDiff: verify.SetTagsDiff,
 	}
 }
 
 func resourceWorkforceCreate(d *schema.ResourceData, meta interface{}) error {
 	conn := meta.(*conns.AWSClient).SageMakerConn
+	defaultTagsConfig := meta.(*conns.AWSClient).DefaultTagsConfig
+	tags := defaultTagsConfig.MergeTags(tftags.New(d.Get("tags").(map[string]interface{})))
 
 	name := d.Get("workforce_name").(string)
 	input := &sagemaker.CreateWorkforceInput{
 		WorkforceName: aws.String(name),
+	}
+
+	if len(tags) > 0 {
+		input.Tags = Tags(tags.IgnoreAWS())
 	}
 
 	if v, ok := d.GetOk("cognito_config"); ok {
@@ -184,6 +195,8 @@ func resourceWorkforceCreate(d *schema.ResourceData, meta interface{}) error {
 
 func resourceWorkforceRead(d *schema.ResourceData, meta interface{}) error {
 	conn := meta.(*conns.AWSClient).SageMakerConn
+	defaultTagsConfig := meta.(*conns.AWSClient).DefaultTagsConfig
+	ignoreTagsConfig := meta.(*conns.AWSClient).IgnoreTagsConfig
 
 	workforce, err := FindWorkforceByName(conn, d.Id())
 
@@ -197,6 +210,7 @@ func resourceWorkforceRead(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("error reading SageMaker Workforce (%s): %w", d.Id(), err)
 	}
 
+	arn := aws.StringValue(workforce.WorkforceName)
 	d.Set("arn", workforce.WorkforceArn)
 	d.Set("subdomain", workforce.SubDomain)
 	d.Set("workforce_name", workforce.WorkforceName)
@@ -215,29 +229,56 @@ func resourceWorkforceRead(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("error setting source_ip_config: %w", err)
 	}
 
+	tags, err := ListTags(conn, arn)
+
+	if err != nil {
+		return fmt.Errorf("error listing tags for SageMaker Workforce (%s): %w", d.Id(), err)
+	}
+
+	tags = tags.IgnoreAWS().IgnoreConfig(ignoreTagsConfig)
+
+	//lintignore:AWSR002
+	if err := d.Set("tags", tags.RemoveDefaultConfig(defaultTagsConfig).Map()); err != nil {
+		return fmt.Errorf("error setting tags: %w", err)
+	}
+
+	if err := d.Set("tags_all", tags.Map()); err != nil {
+		return fmt.Errorf("error setting tags_all: %w", err)
+	}
+
 	return nil
 }
 
 func resourceWorkforceUpdate(d *schema.ResourceData, meta interface{}) error {
 	conn := meta.(*conns.AWSClient).SageMakerConn
 
-	input := &sagemaker.UpdateWorkforceInput{
-		WorkforceName: aws.String(d.Id()),
+	if d.HasChangesExcept("tags", "tags_all") {
+		input := &sagemaker.UpdateWorkforceInput{
+			WorkforceName: aws.String(d.Id()),
+		}
+
+		if d.HasChange("source_ip_config") {
+			input.SourceIpConfig = expandSagemakerWorkforceSourceIpConfig(d.Get("source_ip_config").([]interface{}))
+		}
+
+		if d.HasChange("oidc_config") {
+			input.OidcConfig = expandSagemakerWorkforceOidcConfig(d.Get("oidc_config").([]interface{}))
+		}
+
+		log.Printf("[DEBUG] Updating SageMaker Workforce: %s", input)
+		_, err := conn.UpdateWorkforce(input)
+
+		if err != nil {
+			return fmt.Errorf("error updating SageMaker Workforce (%s): %w", d.Id(), err)
+		}
 	}
 
-	if d.HasChange("source_ip_config") {
-		input.SourceIpConfig = expandSagemakerWorkforceSourceIpConfig(d.Get("source_ip_config").([]interface{}))
-	}
+	if d.HasChange("tags_all") {
+		o, n := d.GetChange("tags_all")
 
-	if d.HasChange("oidc_config") {
-		input.OidcConfig = expandSagemakerWorkforceOidcConfig(d.Get("oidc_config").([]interface{}))
-	}
-
-	log.Printf("[DEBUG] Updating SageMaker Workforce: %s", input)
-	_, err := conn.UpdateWorkforce(input)
-
-	if err != nil {
-		return fmt.Errorf("error updating SageMaker Workforce (%s): %w", d.Id(), err)
+		if err := UpdateTags(conn, d.Get("arn").(string), o, n); err != nil {
+			return fmt.Errorf("error updating SageMaker Workforce (%s) tags: %w", d.Id(), err)
+		}
 	}
 
 	return resourceWorkforceRead(d, meta)

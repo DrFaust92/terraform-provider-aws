@@ -39,6 +39,7 @@ func testAccWorkforce_cognitoConfig(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "source_ip_config.#", "1"),
 					resource.TestCheckResourceAttr(resourceName, "source_ip_config.0.cidrs.#", "0"),
 					resource.TestCheckResourceAttrSet(resourceName, "subdomain"),
+					resource.TestCheckResourceAttr(resourceName, "tags.%", "0"),
 				),
 			},
 			{
@@ -114,6 +115,54 @@ func testAccWorkforce_oidcConfig(t *testing.T) {
 		},
 	})
 }
+
+func TestAccWorkforce_tags(t *testing.T) {
+	var workforce sagemaker.Workforce
+	rName := sdkacctest.RandomWithPrefix(acctest.ResourcePrefix)
+	resourceName := "aws_sagemaker_workforce.test"
+	endpoint1 := "https://example.com"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { acctest.PreCheck(t) },
+		ErrorCheck:   acctest.ErrorCheck(t, sagemaker.EndpointsID),
+		Providers:    acctest.Providers,
+		CheckDestroy: testAccCheckWorkforceDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccWorkforceConfigTags1(rName, endpoint1, "key1", "value1"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckWorkforceExists(resourceName, &workforce),
+					resource.TestCheckResourceAttr(resourceName, "tags.%", "1"),
+					resource.TestCheckResourceAttr(resourceName, "tags.key1", "value1"),
+				),
+			},
+			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"oidc_config.0.client_secret"},
+			},
+			{
+				Config: testAccWorkforceConfigTags2(rName, endpoint1, "key1", "value1updated", "key2", "value2"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckWorkforceExists(resourceName, &workforce),
+					resource.TestCheckResourceAttr(resourceName, "tags.%", "2"),
+					resource.TestCheckResourceAttr(resourceName, "tags.key1", "value1updated"),
+					resource.TestCheckResourceAttr(resourceName, "tags.key2", "value2"),
+				),
+			},
+			{
+				Config: testAccWorkforceConfigTags1(rName, endpoint1, "key2", "value2"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckWorkforceExists(resourceName, &workforce),
+					resource.TestCheckResourceAttr(resourceName, "tags.%", "1"),
+					resource.TestCheckResourceAttr(resourceName, "tags.key2", "value2"),
+				),
+			},
+		},
+	})
+}
+
 func testAccWorkforce_sourceIPConfig(t *testing.T) {
 	var workforce sagemaker.Workforce
 	rName := sdkacctest.RandomWithPrefix(acctest.ResourcePrefix)
@@ -316,4 +365,51 @@ resource "aws_sagemaker_workforce" "test" {
   }
 }
 `, rName, endpoint)
+}
+
+func testAccWorkforceConfigTags1(rName, endpoint, tagKey1, tagValue1 string) string {
+	return testAccWorkforceBaseConfig(rName) + fmt.Sprintf(`
+resource "aws_sagemaker_workforce" "test" {
+  workforce_name = %[1]q
+
+  oidc_config {
+    authorization_endpoint = %[2]q
+    client_id              = %[1]q
+    client_secret          = %[1]q
+    issuer                 = %[2]q
+    jwks_uri               = %[2]q
+    logout_endpoint        = %[2]q
+    token_endpoint         = %[2]q
+    user_info_endpoint     = %[2]q
+  }
+
+  tags = {
+    %[3]q = %[4]q
+  }  
+}
+`, rName, endpoint, tagKey1, tagValue1)
+}
+
+func testAccWorkforceConfigTags2(rName, endpoint, tagKey1, tagValue1, tagKey2, tagValue2 string) string {
+	return testAccWorkforceBaseConfig(rName) + fmt.Sprintf(`
+resource "aws_sagemaker_workforce" "test" {
+  workforce_name = %[1]q
+
+  oidc_config {
+    authorization_endpoint = %[2]q
+    client_id              = %[1]q
+    client_secret          = %[1]q
+    issuer                 = %[2]q
+    jwks_uri               = %[2]q
+    logout_endpoint        = %[2]q
+    token_endpoint         = %[2]q
+    user_info_endpoint     = %[2]q
+  }
+
+  tags = {
+    %[3]q = %[4]q
+    %[5]q = %[6]q
+  }  
+}
+`, rName, endpoint, tagKey1, tagValue1, tagKey2, tagValue2)
 }

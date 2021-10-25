@@ -66,6 +66,7 @@ func TestAccSageMaker_serial(t *testing.T) {
 			"CognitoConfig":  testAccWorkforce_cognitoConfig,
 			"OidcConfig":     testAccWorkforce_oidcConfig,
 			"SourceIpConfig": testAccWorkforce_sourceIPConfig,
+			// "Tags":           testAccWorkforce_tags,
 		},
 		"Workteam": {
 			"disappears":         testAccWorkteam_disappears,
