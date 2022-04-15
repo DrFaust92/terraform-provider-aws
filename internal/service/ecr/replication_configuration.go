@@ -47,12 +47,12 @@ func ResourceReplicationConfiguration() *schema.Resource {
 											Schema: map[string]*schema.Schema{
 												"region": {
 													Type:         schema.TypeString,
-													Required:     true,
+													Optional:     true,
 													ValidateFunc: verify.ValidRegionName,
 												},
 												"registry_id": {
 													Type:         schema.TypeString,
-													Required:     true,
+													Optional:     true,
 													ValidateFunc: verify.ValidAccountID,
 												},
 											},
@@ -198,6 +198,10 @@ func flattenEcrReplicationConfigurationReplicationConfigurationRules(ec []*ecr.R
 			"repository_filter": flattenEcrReplicationConfigurationReplicationConfigurationRulesRepositoryFilters(apiObject.RepositoryFilters),
 		}
 
+		if len(apiObject.Destinations) == 0 {
+			tfMap["destination"] = make([]map[string]interface{}, 0)
+		}
+
 		tfList = append(tfList, tfMap)
 	}
 
@@ -205,11 +209,11 @@ func flattenEcrReplicationConfigurationReplicationConfigurationRules(ec []*ecr.R
 }
 
 func expandEcrReplicationConfigurationReplicationConfigurationRulesDestinations(data []interface{}) []*ecr.ReplicationDestination {
-	if len(data) == 0 || data[0] == nil {
-		return nil
-	}
+	dests := make([]*ecr.ReplicationDestination, 0)
 
-	var dests []*ecr.ReplicationDestination
+	if len(data) == 0 || data[0] == nil {
+		return dests
+	}
 
 	for _, dest := range data {
 		ec := dest.(map[string]interface{})

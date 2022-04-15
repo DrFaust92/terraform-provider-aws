@@ -15,6 +15,7 @@ func TestAccECRReplicationConfiguration_serial(t *testing.T) {
 	testFuncs := map[string]func(t *testing.T){
 		"basic":            testAccReplicationConfiguration_basic,
 		"repositoryFilter": testAccReplicationConfiguration_repositoryFilter,
+		"emptyDestination": testAccReplicationConfiguration_emptyDestination,
 	}
 
 	for name, testFunc := range testFuncs {
@@ -138,6 +139,37 @@ func testAccReplicationConfiguration_repositoryFilter(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "replication_configuration.0.rule.0.repository_filter.0.filter", "a-prefix"),
 					resource.TestCheckResourceAttr(resourceName, "replication_configuration.0.rule.0.repository_filter.0.filter_type", "PREFIX_MATCH"),
 				),
+			},
+		},
+	})
+}
+
+func testAccReplicationConfiguration_emptyDestination(t *testing.T) {
+	resourceName := "aws_ecr_replication_configuration.test"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { acctest.PreCheck(t) },
+		ErrorCheck:   acctest.ErrorCheck(t, ecr.EndpointsID),
+		Providers:    acctest.Providers,
+		CheckDestroy: testAccCheckReplicationConfigurationDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccReplicationConfigurationEmptyDest(),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckReplicationConfigurationExists(resourceName),
+					acctest.CheckResourceAttrAccountID(resourceName, "registry_id"),
+					resource.TestCheckResourceAttr(resourceName, "replication_configuration.#", "1"),
+					resource.TestCheckResourceAttr(resourceName, "replication_configuration.0.rule.#", "1"),
+					resource.TestCheckResourceAttr(resourceName, "replication_configuration.0.rule.0.destination.#", "0"),
+					// resource.TestCheckResourceAttr(resourceName, "replication_configuration.0.rule.0.destination.0.region", acctest.AlternateRegion()),
+					// acctest.CheckResourceAttrAccountID(resourceName, "replication_configuration.0.rule.0.destination.0.registry_id"),
+					// resource.TestCheckResourceAttr(resourceName, "replication_configuration.0.rule.0.repository_filter.#", "0"),
+				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
 			},
 		},
 	})
@@ -272,4 +304,18 @@ resource "aws_ecr_replication_configuration" "test" {
   }
 }
 `, region)
+}
+
+func testAccReplicationConfigurationEmptyDest() string {
+	return `
+data "aws_caller_identity" "current" {}
+
+resource "aws_ecr_replication_configuration" "test" {
+  replication_configuration {
+    rule {
+      destination {}
+    }
+  }
+}
+`
 }
