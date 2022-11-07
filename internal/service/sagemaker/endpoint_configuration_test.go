@@ -38,6 +38,7 @@ func TestAccSageMakerEndpointConfiguration_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "production_variants.0.serverless_config.#", "0"),
 					resource.TestCheckResourceAttr(resourceName, "data_capture_config.#", "0"),
 					resource.TestCheckResourceAttr(resourceName, "async_inference_config.#", "0"),
+					resource.TestCheckResourceAttr(resourceName, "explainer_config.#", "0"),
 				),
 			},
 			{
