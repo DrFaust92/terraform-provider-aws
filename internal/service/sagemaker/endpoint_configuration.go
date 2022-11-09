@@ -216,9 +216,10 @@ func ResourceEndpointConfiguration() *schema.Resource {
 							Elem: &schema.Resource{
 								Schema: map[string]*schema.Schema{
 									"enable_explanations": {
-										Type:     schema.TypeString,
-										Optional: true,
-										ForceNew: true,
+										Type:         schema.TypeString,
+										Required:     true,
+										ForceNew:     true,
+										ValidateFunc: validation.StringLenBetween(1, 64),
 									},
 									"inference_config": {
 										Type:     schema.TypeList,
@@ -304,14 +305,15 @@ func ResourceEndpointConfiguration() *schema.Resource {
 									"shap_config": {
 										Type:     schema.TypeList,
 										MaxItems: 1,
-										Optional: true,
+										Required: true,
 										ForceNew: true,
 										Elem: &schema.Resource{
 											Schema: map[string]*schema.Schema{
 												"number_of_samples": {
-													Type:     schema.TypeInt,
-													Optional: true,
-													ForceNew: true,
+													Type:         schema.TypeInt,
+													Required:     true,
+													ForceNew:     true,
+													ValidateFunc: validation.IntAtLeast(1),
 												},
 												"seed": {
 													Type:     schema.TypeInt,
@@ -321,24 +323,27 @@ func ResourceEndpointConfiguration() *schema.Resource {
 												"shap_baseline_config": {
 													Type:     schema.TypeList,
 													MaxItems: 1,
-													Optional: true,
+													Required: true,
 													ForceNew: true,
 													Elem: &schema.Resource{
 														Schema: map[string]*schema.Schema{
 															"mime_type": {
-																Type:     schema.TypeString,
-																Optional: true,
-																ForceNew: true,
+																Type:         schema.TypeString,
+																Required:     true,
+																ForceNew:     true,
+																ValidateFunc: validation.StringMatch(regexp.MustCompile(`^[a-zA-Z0-9](-*[a-zA-Z0-9])*\/[a-zA-Z0-9](-*[a-zA-Z0-9+.])*`), "String much match `^[a-zA-Z0-9](-*[a-zA-Z0-9])*/[a-zA-Z0-9](-*[a-zA-Z0-9+.])*`"),
 															},
 															"shap_baseline": {
-																Type:     schema.TypeString,
-																Optional: true,
-																ForceNew: true,
+																Type:         schema.TypeString,
+																Optional:     true,
+																ForceNew:     true,
+																ValidateFunc: validation.StringLenBetween(1, 4096),
 															},
 															"shap_baseline_uri": {
-																Type:     schema.TypeString,
-																Optional: true,
-																ForceNew: true,
+																Type:         schema.TypeString,
+																Required:     true,
+																ForceNew:     true,
+																ValidateFunc: validation.StringLenBetween(1, 1024),
 															},
 														},
 													},
@@ -352,13 +357,13 @@ func ResourceEndpointConfiguration() *schema.Resource {
 														Schema: map[string]*schema.Schema{
 															"granularity": {
 																Type:         schema.TypeString,
-																Optional:     true,
+																Required:     true,
 																ForceNew:     true,
 																ValidateFunc: validation.StringInSlice(sagemaker.ClarifyTextGranularity_Values(), false),
 															},
 															"language": {
 																Type:         schema.TypeString,
-																Optional:     true,
+																Required:     true,
 																ForceNew:     true,
 																ValidateFunc: validation.StringInSlice(sagemaker.ClarifyTextLanguage_Values(), false),
 															},

@@ -50,6 +50,32 @@ func TestAccSageMakerEndpointConfiguration_basic(t *testing.T) {
 	})
 }
 
+func TestAccSageMakerEndpointConfiguration_explain(t *testing.T) {
+	rName := sdkacctest.RandomWithPrefix(acctest.ResourcePrefix)
+	resourceName := "aws_sagemaker_endpoint_configuration.test"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:                 func() { acctest.PreCheck(t) },
+		ErrorCheck:               acctest.ErrorCheck(t, sagemaker.EndpointsID),
+		ProtoV5ProviderFactories: acctest.ProtoV5ProviderFactories,
+		CheckDestroy:             testAccCheckEndpointConfigurationDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccEndpointConfigurationConfig_explainer(rName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckEndpointConfigurationExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "explainer_config.#", "1"),
+				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
 func TestAccSageMakerEndpointConfiguration_ProductionVariants_serverless(t *testing.T) {
 	rName := sdkacctest.RandomWithPrefix(acctest.ResourcePrefix)
 	resourceName := "aws_sagemaker_endpoint_configuration.test"
@@ -793,6 +819,36 @@ resource "aws_sagemaker_endpoint_configuration" "test" {
       max_concurrency   = 1
       memory_size_in_mb = 1024
     }
+  }
+}
+`, rName)
+}
+
+func testAccEndpointConfigurationConfig_explainer(rName string) string {
+	return testAccEndpointConfigurationConfig_Base(rName) + fmt.Sprintf(`
+resource "aws_sagemaker_endpoint_configuration" "test" {
+  name = %[1]q
+
+  production_variants {
+    variant_name           = "variant-1"
+    model_name             = aws_sagemaker_model.test.name
+    initial_instance_count = 2
+    instance_type          = "ml.t2.medium"
+    initial_variant_weight = 1
+  }
+
+  explainer_config {
+    clarify_explainer_config {
+      enable_explanations = %[1]q
+
+      shap_config {
+		number_of_samples = 1
+
+        shap_baseline_config {
+          shap_baseline = %[1]q
+		}
+	  }
+	}
   }
 }
 `, rName)

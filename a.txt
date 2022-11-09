@@ -1,0 +1,18 @@
+==> Checking that code complies with gofmt requirements...
+TF_ACC=1 go test ./internal/service/sagemaker/... -v -count 1 -parallel 20 -run='TestAccSageMakerEndpointConfiguration_explain'  -timeout 180m
+=== RUN   TestAccSageMakerEndpointConfiguration_explain
+=== PAUSE TestAccSageMakerEndpointConfiguration_explain
+=== CONT  TestAccSageMakerEndpointConfiguration_explain
+    endpoint_configuration_test.go:57: Step 1/2 error: Error running apply: exit status 1
+        
+        Error: creating SageMaker Endpoint Configuration: ValidationException: 2 validation errors detected: Value '' at 'explainerConfig.clarifyExplainerConfig.shapConfig.shapBaselineConfig.shapBaselineUri' failed to satisfy constraint: Member must satisfy regular expression pattern: ^(https|s3)://([^/]+)/?(.*)$; Value '' at 'explainerConfig.clarifyExplainerConfig.shapConfig.shapBaselineConfig.mimeType' failed to satisfy constraint: Member must satisfy regular expression pattern: ^[a-zA-Z0-9](-*[a-zA-Z0-9])*\/[a-zA-Z0-9](-*[a-zA-Z0-9+.])*
+        	status code: 400, request id: 20f55ca6-e351-4866-9b3d-39ef88e8bd3d
+        
+          with aws_sagemaker_endpoint_configuration.test,
+          on terraform_plugin_test.tf line 32, in resource "aws_sagemaker_endpoint_configuration" "test":
+          32: resource "aws_sagemaker_endpoint_configuration" "test" {
+        
+--- FAIL: TestAccSageMakerEndpointConfiguration_explain (33.87s)
+FAIL
+FAIL	github.com/hashicorp/terraform-provider-aws/internal/service/sagemaker	35.974s
+FAIL
