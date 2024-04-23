@@ -997,6 +997,56 @@ func testAccDomain_spaceSettingsKernelGatewayAppSettings(t *testing.T) {
 	})
 }
 
+func testAccDomain_spaceSettingsJupyterServerAppSettings(t *testing.T) {
+	ctx := acctest.Context(t)
+	var domain sagemaker.DescribeDomainOutput
+	rName := sdkacctest.RandomWithPrefix(acctest.ResourcePrefix)
+	resourceName := "aws_sagemaker_domain.test"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { acctest.PreCheck(ctx, t) },
+		ErrorCheck:               acctest.ErrorCheck(t, names.SageMakerServiceID),
+		ProtoV5ProviderFactories: acctest.ProtoV5ProviderFactories,
+		CheckDestroy:             testAccCheckDomainDestroy(ctx),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccDomainConfig_defaultSpaceJupyterServerAppSettings(rName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDomainExists(ctx, resourceName, &domain),
+					resource.TestCheckResourceAttr(resourceName, "default_user_settings.#", "1"),
+					resource.TestCheckResourceAttr(resourceName, "default_user_settings.0.jupyter_server_app_settings.#", "1"),
+					resource.TestCheckResourceAttr(resourceName, "default_user_settings.0.jupyter_server_app_settings.0.default_resource_spec.#", "1"),
+					resource.TestCheckResourceAttr(resourceName, "default_user_settings.0.jupyter_server_app_settings.0.default_resource_spec.0.instance_type", "system"),
+					resource.TestCheckResourceAttr(resourceName, "default_space_settings.#", "1"),
+					resource.TestCheckResourceAttr(resourceName, "default_space_settings.0.jupyter_server_app_settings.#", "1"),
+					resource.TestCheckResourceAttr(resourceName, "default_space_settings.0.jupyter_server_app_settings.0.default_resource_spec.#", "1"),
+					resource.TestCheckResourceAttr(resourceName, "default_space_settings.0.jupyter_server_app_settings.0.default_resource_spec.0.instance_type", "system"),
+				),
+			},
+			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"retention_policy"},
+			},
+			// {
+			// 	Config: testAccDomainConfig_defaultSpaceJupyterServerAppSettings(rName),
+			// 	Check: resource.ComposeTestCheckFunc(
+			// 		testAccCheckDomainExists(ctx, resourceName, &domain),
+			// 		resource.TestCheckResourceAttr(resourceName, "default_user_settings.#", "1"),
+			// 		resource.TestCheckResourceAttr(resourceName, "default_user_settings.0.jupyter_server_app_settings.#", "1"),
+			// 		resource.TestCheckResourceAttr(resourceName, "default_user_settings.0.jupyter_server_app_settings.0.default_resource_spec.#", "1"),
+			// 		resource.TestCheckResourceAttr(resourceName, "default_user_settings.0.jupyter_server_app_settings.0.default_resource_spec.0.instance_type", "system"),
+			// 		resource.TestCheckResourceAttr(resourceName, "default_space_settings.#", "1"),
+			// 		resource.TestCheckResourceAttr(resourceName, "default_space_settings.0.jupyter_server_app_settings.#", "1"),
+			// 		resource.TestCheckResourceAttr(resourceName, "default_space_settings.0.jupyter_server_app_settings.0.default_resource_spec.#", "1"),
+			// 		resource.TestCheckResourceAttr(resourceName, "default_space_settings.0.jupyter_server_app_settings.0.default_resource_spec.0.instance_type", "system"),
+			// 	),
+			// },
+		},
+	})
+}
+
 func testAccDomain_posix(t *testing.T) {
 	ctx := acctest.Context(t)
 	var domain sagemaker.DescribeDomainOutput
@@ -1848,6 +1898,41 @@ resource "aws_sagemaker_domain" "test" {
   }
 }
 `, rName, instance))
+}
+
+func testAccDomainConfig_defaultSpaceJupyterServerAppSettings(rName string) string {
+	return acctest.ConfigCompose(testAccDomainConfig_base(rName), fmt.Sprintf(`
+resource "aws_sagemaker_domain" "test" {
+  domain_name = %[1]q
+  auth_mode   = "IAM"
+  vpc_id      = aws_vpc.test.id
+  subnet_ids  = aws_subnet.test[*].id
+
+  default_user_settings {
+    execution_role = aws_iam_role.test.arn
+
+    jupyter_server_app_settings {
+      default_resource_spec {
+        instance_type = "system"
+      }
+    }
+  }
+
+  default_space_settings {
+    execution_role = aws_iam_role.test.arn
+
+    jupyter_server_app_settings {
+      default_resource_spec {
+        instance_type = "system"
+      }
+    }
+  }
+
+  retention_policy {
+    home_efs_file_system = "Delete"
+  }
+}
+`, rName))
 }
 
 func testAccDomainConfig_kernelGatewayAppSettingsLifecycle(rName string) string {
