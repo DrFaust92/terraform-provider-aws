@@ -122,7 +122,7 @@ func dataSourceVPCEndpointServiceRead(ctx context.Context, d *schema.ResourceDat
 	if v, ok := d.GetOk(names.AttrServiceName); ok {
 		serviceName = v.(string)
 	} else if v, ok := d.GetOk("service"); ok {
-		serviceName = fmt.Sprintf("com.amazonaws.%s.%s", meta.(*conns.AWSClient).Region, v.(string))
+		serviceName = fmt.Sprintf("com.amazonaws.%s.%s", meta.(*conns.AWSClient).Region(ctx), v.(string))
 	}
 
 	if serviceName != "" {
@@ -179,10 +179,10 @@ func dataSourceVPCEndpointServiceRead(ctx context.Context, d *schema.ResourceDat
 
 	d.Set("acceptance_required", sd.AcceptanceRequired)
 	arn := arn.ARN{
-		Partition: meta.(*conns.AWSClient).Partition,
+		Partition: meta.(*conns.AWSClient).Partition(ctx),
 		Service:   names.EC2,
-		Region:    meta.(*conns.AWSClient).Region,
-		AccountID: meta.(*conns.AWSClient).AccountID,
+		Region:    meta.(*conns.AWSClient).Region(ctx),
+		AccountID: meta.(*conns.AWSClient).AccountID(ctx),
 		Resource:  fmt.Sprintf("vpc-endpoint-service/%s", serviceID),
 	}.String()
 	d.Set(names.AttrARN, arn)

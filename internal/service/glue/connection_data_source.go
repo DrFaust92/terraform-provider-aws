@@ -115,10 +115,10 @@ func dataSourceConnectionRead(ctx context.Context, d *schema.ResourceData, meta 
 	d.Set(names.AttrDescription, connection.Description)
 
 	connectionArn := arn.ARN{
-		Partition: meta.(*conns.AWSClient).Partition,
+		Partition: meta.(*conns.AWSClient).Partition(ctx),
 		Service:   "glue",
-		Region:    meta.(*conns.AWSClient).Region,
-		AccountID: meta.(*conns.AWSClient).AccountID,
+		Region:    meta.(*conns.AWSClient).Region(ctx),
+		AccountID: meta.(*conns.AWSClient).AccountID(ctx),
 		Resource:  fmt.Sprintf("connection/%s", connectionName),
 	}.String()
 	d.Set(names.AttrARN, connectionArn)

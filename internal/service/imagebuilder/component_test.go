@@ -35,7 +35,7 @@ func TestAccImageBuilderComponent_basic(t *testing.T) {
 				Config: testAccComponentConfig_name(rName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckComponentExists(ctx, resourceName),
-					acctest.MatchResourceAttrRegionalARN(resourceName, names.AttrARN, "imagebuilder", regexache.MustCompile(fmt.Sprintf("component/%s/1.0.0/[1-9][0-9]*", rName))),
+					acctest.MatchResourceAttrRegionalARN(ctx, resourceName, names.AttrARN, "imagebuilder", regexache.MustCompile(fmt.Sprintf("component/%s/1.0.0/[1-9][0-9]*", rName))),
 					resource.TestCheckResourceAttr(resourceName, "change_description", ""),
 					resource.TestMatchResourceAttr(resourceName, "data", regexache.MustCompile(`schemaVersion`)),
 					acctest.CheckResourceAttrRFC3339(resourceName, "date_created"),
@@ -43,10 +43,10 @@ func TestAccImageBuilderComponent_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, names.AttrEncrypted, acctest.CtTrue),
 					resource.TestCheckResourceAttr(resourceName, names.AttrKMSKeyID, ""),
 					resource.TestCheckResourceAttr(resourceName, names.AttrName, rName),
-					acctest.CheckResourceAttrAccountID(resourceName, names.AttrOwner),
+					acctest.CheckResourceAttrAccountID(ctx, resourceName, names.AttrOwner),
 					resource.TestCheckResourceAttr(resourceName, "platform", string(awstypes.PlatformLinux)),
-					resource.TestCheckResourceAttr(resourceName, "supported_os_versions.#", acctest.Ct0),
-					resource.TestCheckResourceAttr(resourceName, acctest.CtTagsPercent, acctest.Ct0),
+					resource.TestCheckResourceAttr(resourceName, "supported_os_versions.#", "0"),
+					resource.TestCheckResourceAttr(resourceName, acctest.CtTagsPercent, "0"),
 					resource.TestCheckResourceAttr(resourceName, names.AttrType, string(awstypes.ComponentTypeBuild)),
 					resource.TestCheckResourceAttr(resourceName, names.AttrVersion, "1.0.0"),
 				),
@@ -212,7 +212,7 @@ func TestAccImageBuilderComponent_supportedOsVersions(t *testing.T) {
 				Config: testAccComponentConfig_supportedOsVersions(rName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckComponentExists(ctx, resourceName),
-					resource.TestCheckResourceAttr(resourceName, "supported_os_versions.#", acctest.Ct1),
+					resource.TestCheckResourceAttr(resourceName, "supported_os_versions.#", "1"),
 				),
 			},
 			{
@@ -240,7 +240,7 @@ func TestAccImageBuilderComponent_tags(t *testing.T) {
 				Config: testAccComponentConfig_tags1(rName, acctest.CtKey1, acctest.CtValue1),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckComponentExists(ctx, resourceName),
-					resource.TestCheckResourceAttr(resourceName, acctest.CtTagsPercent, acctest.Ct1),
+					resource.TestCheckResourceAttr(resourceName, acctest.CtTagsPercent, "1"),
 					resource.TestCheckResourceAttr(resourceName, acctest.CtTagsKey1, acctest.CtValue1),
 				),
 			},
@@ -254,7 +254,7 @@ func TestAccImageBuilderComponent_tags(t *testing.T) {
 				Config: testAccComponentConfig_tags2(rName, acctest.CtKey1, acctest.CtValue1Updated, acctest.CtKey2, acctest.CtValue2),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckComponentExists(ctx, resourceName),
-					resource.TestCheckResourceAttr(resourceName, acctest.CtTagsPercent, acctest.Ct2),
+					resource.TestCheckResourceAttr(resourceName, acctest.CtTagsPercent, "2"),
 					resource.TestCheckResourceAttr(resourceName, acctest.CtTagsKey1, acctest.CtValue1Updated),
 					resource.TestCheckResourceAttr(resourceName, acctest.CtTagsKey2, acctest.CtValue2),
 				),
@@ -263,7 +263,7 @@ func TestAccImageBuilderComponent_tags(t *testing.T) {
 				Config: testAccComponentConfig_tags1(rName, acctest.CtKey2, acctest.CtValue2),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckComponentExists(ctx, resourceName),
-					resource.TestCheckResourceAttr(resourceName, acctest.CtTagsPercent, acctest.Ct1),
+					resource.TestCheckResourceAttr(resourceName, acctest.CtTagsPercent, "1"),
 					resource.TestCheckResourceAttr(resourceName, acctest.CtTagsKey2, acctest.CtValue2),
 				),
 			},

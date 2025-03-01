@@ -11,7 +11,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sagemaker"
 	awstypes "github.com/aws/aws-sdk-go-v2/service/sagemaker/types"
+	"github.com/hashicorp/aws-sdk-go-base/v2/tfawserr"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-provider-aws/internal/sweep"
 	"github.com/hashicorp/terraform-provider-aws/internal/sweep/awsv2"
@@ -160,6 +162,11 @@ func RegisterSweepers() {
 	resource.AddTestSweepers("aws_sagemaker_pipeline", &resource.Sweeper{
 		Name: "aws_sagemaker_pipeline",
 		F:    sweepPipelines,
+	})
+
+	resource.AddTestSweepers("aws_sagemaker_hub", &resource.Sweeper{
+		Name: "aws_sagemaker_hub",
+		F:    sweepHubs,
 	})
 }
 
@@ -1116,4 +1123,62 @@ func sweepMlflowTrackingServers(region string) error {
 	}
 
 	return sweeperErrs.ErrorOrNil()
+}
+
+func sweepHubs(region string) error {
+	ctx := sweep.Context(region)
+	client, err := sweep.SharedRegionalSweepClient(ctx, region)
+	if err != nil {
+		return fmt.Errorf("getting client: %s", err)
+	}
+	conn := client.SageMakerClient(ctx)
+
+	var sweepResources []sweep.Sweepable
+
+	in := sagemaker.ListHubsInput{}
+	for {
+		out, err := conn.ListHubs(ctx, &in)
+		if awsv2.SkipSweepError(err) {
+			log.Printf("[WARN] Skipping Sagemaker Hubs sweep for %s: %s", region, err)
+			return nil
+		}
+		// The Sagemaker API returns this in unsupported regions
+		if tfawserr.ErrCodeEquals(err, "ThrottlingException") {
+			tflog.Warn(ctx, "Skipping sweeper", map[string]any{
+				"skip_reason": "Unsupported region",
+				"error":       err.Error(),
+			})
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("error retrieving Sagemaker Hubs: %w", err)
+		}
+
+		for _, hub := range out.HubSummaries {
+			name := aws.ToString(hub.HubName)
+			log.Printf("[INFO] Deleting Sagemaker Hubs: %s", name)
+
+			if !strings.HasPrefix(name, sweep.ResourcePrefix) {
+				log.Printf("[INFO] Skipping SageMaker Hub (%s): not in allow list", name)
+				continue
+			}
+
+			r := resourceHub()
+			d := r.Data(nil)
+			d.SetId(name)
+
+			sweepResources = append(sweepResources, sweep.NewSweepResource(r, d, client))
+		}
+
+		if aws.ToString(out.NextToken) == "" {
+			break
+		}
+		in.NextToken = out.NextToken
+	}
+
+	if err := sweep.SweepOrchestrator(ctx, sweepResources); err != nil {
+		return fmt.Errorf("error sweeping Sagemaker Hubs for %s: %w", region, err)
+	}
+
+	return nil
 }

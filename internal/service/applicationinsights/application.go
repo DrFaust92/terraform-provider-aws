@@ -140,10 +140,10 @@ func resourceApplicationRead(ctx context.Context, d *schema.ResourceData, meta i
 
 	rgName := aws.ToString(application.ResourceGroupName)
 	arn := arn.ARN{
-		Partition: meta.(*conns.AWSClient).Partition,
+		Partition: meta.(*conns.AWSClient).Partition(ctx),
 		Service:   "applicationinsights",
-		Region:    meta.(*conns.AWSClient).Region,
-		AccountID: meta.(*conns.AWSClient).AccountID,
+		Region:    meta.(*conns.AWSClient).Region(ctx),
+		AccountID: meta.(*conns.AWSClient).AccountID(ctx),
 		Resource:  "application/resource-group/" + rgName,
 	}.String()
 	d.Set(names.AttrARN, arn)

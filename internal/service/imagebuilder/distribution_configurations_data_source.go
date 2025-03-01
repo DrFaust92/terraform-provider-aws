@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/terraform-provider-aws/internal/conns"
 	"github.com/hashicorp/terraform-provider-aws/internal/errs/sdkdiag"
 	"github.com/hashicorp/terraform-provider-aws/internal/namevaluesfilters"
-	namevaluesfiltersv2 "github.com/hashicorp/terraform-provider-aws/internal/namevaluesfilters/v2"
 	tfslices "github.com/hashicorp/terraform-provider-aws/internal/slices"
 	"github.com/hashicorp/terraform-provider-aws/names"
 )
@@ -47,7 +46,7 @@ func dataSourceDistributionConfigurationsRead(ctx context.Context, d *schema.Res
 	input := &imagebuilder.ListDistributionConfigurationsInput{}
 
 	if v, ok := d.GetOk(names.AttrFilter); ok {
-		input.Filters = namevaluesfiltersv2.New(v.(*schema.Set)).ImageBuilderFilters()
+		input.Filters = namevaluesfilters.New(v.(*schema.Set)).ImageBuilderFilters()
 	}
 
 	distributionConfigurations, err := findDistributionConfigurations(ctx, conn, input)
@@ -56,7 +55,7 @@ func dataSourceDistributionConfigurationsRead(ctx context.Context, d *schema.Res
 		return sdkdiag.AppendErrorf(diags, "reading Image Builder Distribution Configurations: %s", err)
 	}
 
-	d.SetId(meta.(*conns.AWSClient).Region)
+	d.SetId(meta.(*conns.AWSClient).Region(ctx))
 	d.Set(names.AttrARNs, tfslices.ApplyToAll(distributionConfigurations, func(v awstypes.DistributionConfigurationSummary) string {
 		return aws.ToString(v.Arn)
 	}))

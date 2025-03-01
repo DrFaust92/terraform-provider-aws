@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/terraform-provider-aws/internal/conns"
 	"github.com/hashicorp/terraform-provider-aws/internal/errs/sdkdiag"
 	"github.com/hashicorp/terraform-provider-aws/internal/namevaluesfilters"
-	namevaluesfiltersv2 "github.com/hashicorp/terraform-provider-aws/internal/namevaluesfilters/v2"
 	tfslices "github.com/hashicorp/terraform-provider-aws/internal/slices"
 	"github.com/hashicorp/terraform-provider-aws/names"
 )
@@ -47,7 +46,7 @@ func dataSourceImagePipelinesRead(ctx context.Context, d *schema.ResourceData, m
 	input := &imagebuilder.ListImagePipelinesInput{}
 
 	if v, ok := d.GetOk(names.AttrFilter); ok {
-		input.Filters = namevaluesfiltersv2.New(v.(*schema.Set)).ImageBuilderFilters()
+		input.Filters = namevaluesfilters.New(v.(*schema.Set)).ImageBuilderFilters()
 	}
 
 	imagePipelines, err := findImagePipelines(ctx, conn, input)
@@ -56,7 +55,7 @@ func dataSourceImagePipelinesRead(ctx context.Context, d *schema.ResourceData, m
 		return sdkdiag.AppendErrorf(diags, "reading Image Builder Image Pipelines: %s", err)
 	}
 
-	d.SetId(meta.(*conns.AWSClient).Region)
+	d.SetId(meta.(*conns.AWSClient).Region(ctx))
 	d.Set(names.AttrARNs, tfslices.ApplyToAll(imagePipelines, func(v awstypes.ImagePipeline) string {
 		return aws.ToString(v.Arn)
 	}))
